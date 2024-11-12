@@ -43,7 +43,7 @@ $(OUTPUT_DIR)/Core/%.o: %.c
 		-std=gnu99 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@)" -c -o "$@" "$<"
 
 $(OUTPUT_DIR)/Peripheral/%.o: %.c
-	$(BIN)/$(BIN_PREFIX)-gcc $(CFLAGS) \
+	$(BIN)/$(BIN_PREFIX)-gcc $(CFLAGS) $(DEFINES) \
 		-I $(Core_ROOT) \
 		-I $(Project_INC_DIR) \
 		-I $(Peripheral_INC_DIR) \
