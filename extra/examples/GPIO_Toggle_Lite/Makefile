@@ -27,7 +27,7 @@ Startup_ROOT = ../../../EVT/EXAM/SRC/Startup
 Startup_SOURCE = startup_ch32v20x_D8W.S
 Startup_OBJECT = $(addprefix $(OUTPUT_DIR)/Startup/, $(Startup_SOURCE:.S=.o))
 
-LINK_FILE = ../../../EVT/EXAM/SRC/Ld/Link.ld
+LINK_FILE = ../../Link.ld
 
 INCLUDES = -I $(Peripheral_INC_DIR) -I $(Core_ROOT) -I $(Project_INC_DIR)
 
