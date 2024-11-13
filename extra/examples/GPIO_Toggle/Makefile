@@ -7,15 +7,9 @@ OUTPUT_DIR = ./dist
 
 TARGET := $(addprefix $(OUTPUT_DIR)/, $(notdir $(CURDIR)))
 
-Project_ROOT = .
-Project_SRC_DIR = $(Project_ROOT)
-Project_INC_DIR = $(Project_ROOT)/include
-Project_SOURCE = $(notdir $(wildcard $(Project_SRC_DIR)/*.c))
-Project_OBJECTS := $(addprefix $(OUTPUT_DIR)/, $(Project_SOURCE:.c=.o))
-
-Debug_ROOT = ../../../EVT/EXAM/SRC/Debug
-Debug_SOURCE = debug.c
-Debug_OBJECT := $(addprefix $(OUTPUT_DIR)/Debug/, $(Debug_SOURCE:.c=.o))
+Startup_ROOT = ../../../EVT/EXAM/SRC/Startup
+Startup_SOURCE = startup_ch32v20x_D8W.S
+Startup_OBJECT = $(addprefix $(OUTPUT_DIR)/Startup/, $(Startup_SOURCE:.S=.o))
 
 Core_ROOT = ../../../EVT/EXAM/SRC/Core
 Core_SOURCE = core_riscv.c
@@ -28,15 +22,23 @@ Peripheral_SRC_DIR = $(Peripheral_ROOT)/src
 Peripheral_SOURCES = ch32v20x_gpio.c ch32v20x_usart.c ch32v20x_rcc.c ch32v20x_misc.c ch32v20x_dbgmcu.c
 Peripheral_OBJECTS := $(addprefix $(OUTPUT_DIR)/Peripheral/, $(Peripheral_SOURCES:.c=.o))
 
-Startup_ROOT = ../../../EVT/EXAM/SRC/Startup
-Startup_SOURCE = startup_ch32v20x_D8W.S
-Startup_OBJECT = $(addprefix $(OUTPUT_DIR)/Startup/, $(Startup_SOURCE:.S=.o))
+Debug_ROOT = ../../../EVT/EXAM/SRC/Debug
+Debug_SOURCE = debug.c
+Debug_OBJECT := $(addprefix $(OUTPUT_DIR)/Debug/, $(Debug_SOURCE:.c=.o))
+
+Project_ROOT = .
+Project_SRC_DIR = $(Project_ROOT)
+Project_INC_DIR = $(Project_ROOT)/include
+Project_SOURCE = $(notdir $(wildcard $(Project_SRC_DIR)/*.c))
+Project_OBJECTS := $(addprefix $(OUTPUT_DIR)/, $(Project_SOURCE:.c=.o))
 
 LINK_FILE = ../../Link.ld
 
 INCLUDE = -I $(Debug_ROOT) -I $(Peripheral_INC_DIR) -I $(Core_ROOT) -I $(Project_INC_DIR)
 
 VPATH = $(Project_ROOT):$(Startup_ROOT):$(Core_ROOT):$(Peripheral_SRC_DIR):$(Debug_ROOT)
+
+all: $(OUTPUT_DIR) $(TARGET).hex
 
 $(OUTPUT_DIR)/Startup/%.o: %.S
 	$(BIN)/$(BIN_PREFIX)-gcc $(CFLAGS) \
@@ -66,8 +68,6 @@ $(OUTPUT_DIR)/Debug/%.o: %.c
 $(OUTPUT_DIR)/%.o: %.c
 	$(BIN)/$(BIN_PREFIX)-gcc $(CFLAGS) $(INCLUDE) $(DEFINES) -std=gnu99 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@)" -c -o "$@" "$<"
 
-all: $(OUTPUT_DIR) $(TARGET).hex
-
 $(TARGET).elf: ${Project_OBJECTS} $(Startup_OBJECT) $(Core_OBJECT) $(Peripheral_OBJECTS) $(Debug_OBJECT)
 	$(BIN)/$(BIN_PREFIX)-gcc $(CFLAGS) \
 		-T "$(LINK_FILE)" -nostartfiles -Xlinker --gc-sections -Wl,-Map,"$(TARGET).map" --specs=nano.specs --specs=nosys.specs -o "$@" $^
@@ -75,15 +75,14 @@ $(TARGET).elf: ${Project_OBJECTS} $(Startup_OBJECT) $(Core_OBJECT) $(Peripheral_
 $(TARGET).hex: $(TARGET).elf
 	$(BIN)/$(BIN_PREFIX)-objcopy -O ihex "$<" "$@"
 
-flash: $(TARGET).hex
-	sudo ../../isp/WCHISPTool_CMD -p /dev/ch37x0 -c ../../isp/config.ini -o program -f $<
-
 $(OUTPUT_DIR):
-	mkdir -p $(OUTPUT_DIR)/Peripheral
 	mkdir -p $(OUTPUT_DIR)/Startup
 	mkdir -p $(OUTPUT_DIR)/Core
 	mkdir -p $(OUTPUT_DIR)/Peripheral
 	mkdir -p $(OUTPUT_DIR)/Debug
+
+flash: $(TARGET).hex
+	sudo ../../isp/WCHISPTool_CMD -p /dev/ch37x0 -c ../../isp/config.ini -o program -f $<
 
 clean:
 	rm -rf $(OUTPUT_DIR)

@@ -7,19 +7,9 @@ OUTPUT_DIR = ./dist
 
 TARGET := $(addprefix $(OUTPUT_DIR)/, $(notdir $(CURDIR)))
 
-Project_ROOT = .
-Project_SRC_DIR = $(Project_ROOT)/src
-Project_INC_DIR = $(Project_ROOT)/inc
-Project_SOURCE = $(notdir $(wildcard $(Project_SRC_DIR)/*.c))
-Project_OBJECTS := $(addprefix $(OUTPUT_DIR)/, $(Project_SOURCE:.c=.o))
-
 Startup_ROOT = ../../../EVT/EXAM/SRC/Startup
 Startup_SOURCE = startup_ch32v20x_D8W.S
 Startup_OBJECT = $(addprefix $(OUTPUT_DIR)/Startup/, $(Startup_SOURCE:.S=.o))
-
-Debug_ROOT = ../../../EVT/EXAM/SRC/Debug
-Debug_SOURCE = debug.c
-Debug_OBJECT := $(addprefix $(OUTPUT_DIR)/Debug/, $(Debug_SOURCE:.c=.o))
 
 Core_ROOT = ../../../EVT/EXAM/SRC/Core
 Core_SOURCE = core_riscv.c
@@ -32,17 +22,29 @@ Peripheral_SOURCES = $(notdir $(wildcard $(Peripheral_SRC_DIR)/*.c))
 # Peripheral_SOURCES = ch32v20x_gpio.c ch32v20x_usart.c ch32v20x_rcc.c ch32v20x_misc.c ch32v20x_dbgmcu.c
 Peripheral_OBJECTS := $(addprefix $(OUTPUT_DIR)/Peripheral/, $(Peripheral_SOURCES:.c=.o))
 
+Debug_ROOT = ../../../EVT/EXAM/SRC/Debug
+Debug_SOURCE = debug.c
+Debug_OBJECT := $(addprefix $(OUTPUT_DIR)/Debug/, $(Debug_SOURCE:.c=.o))
+
 NetLib_ROOT = ../../../EVT/EXAM/ETH/NetLib
 NetLib_SOURCES = $(notdir $(wildcard $(NetLib_ROOT)/*.c))
 NetLib_OBJECTS := $(addprefix $(OUTPUT_DIR)/NetLib/, $(NetLib_SOURCES:.c=.o))
 
+Project_ROOT = .
+Project_SRC_DIR = $(Project_ROOT)/src
+Project_INC_DIR = $(Project_ROOT)/inc
+Project_SOURCE = $(notdir $(wildcard $(Project_SRC_DIR)/*.c))
+Project_OBJECTS := $(addprefix $(OUTPUT_DIR)/, $(Project_SOURCE:.c=.o))
+
 LINK_FILE = ../../Link.ld
 
-INCLUDE = -I $(Debug_ROOT) -I $(Peripheral_INC_DIR) -I $(Core_ROOT) -I $(Project_INC_DIR) -I $(NetLib_ROOT)
+INCLUDES = -I $(Core_ROOT) -I $(Peripheral_INC_DIR) -I $(NetLib_ROOT) -I $(Debug_ROOT) -I $(Project_INC_DIR)
 
-VPATH = $(Project_SRC_DIR):$(Startup_ROOT):$(Core_ROOT):$(Peripheral_SRC_DIR):$(Debug_ROOT):$(NetLib_ROOT)
+VPATH = $(Startup_ROOT):$(Core_ROOT):$(Peripheral_SRC_DIR):$(NetLib_ROOT):$(Debug_ROOT):$(Project_SRC_DIR)
 
 LIBS := -lwchnet
+
+all: $(OUTPUT_DIR) $(TARGET).hex
 
 $(OUTPUT_DIR)/Startup/%.o: %.S
 	$(BIN)/$(BIN_PREFIX)-gcc $(CFLAGS) \
@@ -56,32 +58,30 @@ $(OUTPUT_DIR)/Core/%.o: %.c
 $(OUTPUT_DIR)/Peripheral/%.o: %.c
 	$(BIN)/$(BIN_PREFIX)-gcc $(CFLAGS) $(DEFINES) \
 		-I $(Core_ROOT) \
-		-I $(Debug_ROOT) \
-		-I $(Project_INC_DIR) \
 		-I $(Peripheral_INC_DIR) \
+		-I $(Project_INC_DIR) \
+		-I $(Debug_ROOT) \
 		-std=gnu99 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@)" -c -o "$@" "$<"
 
 $(OUTPUT_DIR)/Debug/%.o: %.c
-	$(BIN)/$(BIN_PREFIX)-gcc $(CFLAGS) \
+	$(BIN)/$(BIN_PREFIX)-gcc $(CFLAGS) $(DEFINES) \
 		-I $(Core_ROOT) \
-		-I $(Debug_ROOT) \
 		-I $(Project_INC_DIR) \
 		-I $(Peripheral_INC_DIR) \
+		-I $(Debug_ROOT) \
 		-std=gnu99 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@)" -c -o "$@" "$<"
 
 $(OUTPUT_DIR)/NetLib/%.o: %.c
 	$(BIN)/$(BIN_PREFIX)-gcc $(CFLAGS) $(DEFINES) \
 		-I $(Core_ROOT) \
-		-I $(Debug_ROOT) \
-		-I $(Project_INC_DIR) \
 		-I $(Peripheral_INC_DIR) \
+		-I $(Project_INC_DIR) \
 		-I $(NetLib_ROOT) \
+		-I $(Debug_ROOT) \
 		-std=gnu99 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@)" -c -o "$@" "$<"
 
 $(OUTPUT_DIR)/%.o: %.c
-	$(BIN)/$(BIN_PREFIX)-gcc $(CFLAGS) $(INCLUDE) $(DEFINES) -std=gnu99 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@)" -c -o "$@" "$<"
-
-all: $(OUTPUT_DIR) $(TARGET).hex
+	$(BIN)/$(BIN_PREFIX)-gcc $(CFLAGS) $(INCLUDES) $(DEFINES) -std=gnu99 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@)" -c -o "$@" "$<"
 
 $(TARGET).elf: ${Project_OBJECTS} $(Startup_OBJECT) $(Core_OBJECT) $(Peripheral_OBJECTS) $(Debug_OBJECT) $(NetLib_OBJECTS)
 	$(BIN)/$(BIN_PREFIX)-gcc $(CFLAGS) \
@@ -91,16 +91,15 @@ $(TARGET).elf: ${Project_OBJECTS} $(Startup_OBJECT) $(Core_OBJECT) $(Peripheral_
 $(TARGET).hex: $(TARGET).elf
 	$(BIN)/$(BIN_PREFIX)-objcopy -O ihex "$<" "$@"
 
-flash: $(TARGET).hex
-	sudo ../../isp/WCHISPTool_CMD -p /dev/ch37x0 -c ../../isp/config.ini -o program -f $<
-
 $(OUTPUT_DIR):
-	mkdir -p $(OUTPUT_DIR)/Peripheral
 	mkdir -p $(OUTPUT_DIR)/Startup
 	mkdir -p $(OUTPUT_DIR)/Core
 	mkdir -p $(OUTPUT_DIR)/Peripheral
-	mkdir -p $(OUTPUT_DIR)/Debug
 	mkdir -p $(OUTPUT_DIR)/NetLib
+	mkdir -p $(OUTPUT_DIR)/Debug
+
+flash: $(TARGET).hex
+	sudo ../../isp/WCHISPTool_CMD -p /dev/ch37x0 -c ../../isp/config.ini -o program -f $<
 
 clean:
 	rm -rf $(OUTPUT_DIR)
