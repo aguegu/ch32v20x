@@ -32,7 +32,8 @@ Project_INC_DIR = $(Project_ROOT)/include
 Project_SOURCE = $(notdir $(wildcard $(Project_SRC_DIR)/*.c))
 Project_OBJECTS := $(addprefix $(OUTPUT_DIR)/, $(Project_SOURCE:.c=.o))
 
-LINK_FILE = ../../Link.ld
+# LINK_FILE = ../../Link.ld
+LINK_FILE = ../../BLE/HAL/Link.ld
 
 INCLUDE = -I $(Debug_ROOT) -I $(Peripheral_INC_DIR) -I $(Core_ROOT) -I $(Project_INC_DIR)
 

@@ -18,8 +18,8 @@ Core_OBJECT := $(addprefix $(OUTPUT_DIR)/Core/, $(Core_SOURCE:.c=.o))
 Peripheral_ROOT = ../../../EVT/EXAM/SRC/Peripheral
 Peripheral_INC_DIR = $(Peripheral_ROOT)/inc
 Peripheral_SRC_DIR = $(Peripheral_ROOT)/src
-Peripheral_SOURCES = $(notdir $(wildcard $(Peripheral_SRC_DIR)/*.c))
-# Peripheral_SOURCES = ch32v20x_gpio.c ch32v20x_usart.c ch32v20x_rcc.c ch32v20x_misc.c ch32v20x_dbgmcu.c
+# Peripheral_SOURCES = $(notdir $(wildcard $(Peripheral_SRC_DIR)/*.c))
+Peripheral_SOURCES = ch32v20x_gpio.c ch32v20x_usart.c ch32v20x_rcc.c ch32v20x_misc.c ch32v20x_tim.c
 Peripheral_OBJECTS := $(addprefix $(OUTPUT_DIR)/Peripheral/, $(Peripheral_SOURCES:.c=.o))
 
 Debug_ROOT = ../../../EVT/EXAM/SRC/Debug
@@ -36,7 +36,8 @@ Project_INC_DIR = $(Project_ROOT)/inc
 Project_SOURCE = $(notdir $(wildcard $(Project_SRC_DIR)/*.c))
 Project_OBJECTS := $(addprefix $(OUTPUT_DIR)/, $(Project_SOURCE:.c=.o))
 
-LINK_FILE = ../../Link.ld
+# LINK_FILE = ../../Link.ld
+LINK_FILE = ../../BLE/HAL/Link.ld
 
 INCLUDES = -I $(Core_ROOT) -I $(Peripheral_INC_DIR) -I $(NetLib_ROOT) -I $(Debug_ROOT) -I $(Project_INC_DIR)
 
