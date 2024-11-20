@@ -1,21 +1,6 @@
-/********************************** (C) COPYRIGHT *******************************
- * File Name          : main.c
- * Author             : WCH
- * Version            : V1.0.0
- * Date               : 2022/05/31
- * Description        : Main program body.
-*********************************************************************************
-* Copyright (c) 2021 Nanjing Qinheng Microelectronics Co., Ltd.
-* Attention: This software (modified or not) and binary are used for
-* microcontroller manufactured by Nanjing Qinheng Microelectronics.
-*******************************************************************************/
-/*
- *@Note
-TCP Server example, demonstrating that TCP Server
-receives data and sends back after connecting to a client.
-For details on the selection of engineering chips,
-please refer to the "CH32V20x Evaluation Board Manual" under the CH32V20xEVT\EVT\PUB folder.
- */
+#include <stdbool.h>
+#include <stdlib.h>
+#include <ctype.h>
 #include "string.h"
 #include "eth_driver.h"
 
@@ -27,11 +12,17 @@ u16 srcport = 80;                                     //source port
 
 u8 SocketIdForListen;                                   //Socket for Listening
 u8 SocketRecvBuf[WCHNET_MAX_SOCKET_NUM][RECE_BUF_LEN];  //socket receive buffer
-u8 requestBuffer[RECE_BUF_LEN];
 
-extern unsigned char assets_index_html[];
+u8 requestBuffers[WCHNET_MAX_SOCKET_NUM][RECE_BUF_LEN];
+u16 requestBufferLengths[WCHNET_MAX_SOCKET_NUM];
+
 extern unsigned char assets_index_html_gz[];
 extern unsigned int assets_index_html_gz_len;
+
+typedef struct {
+  const char* path;
+  void (*handler)(u8, const char* content);
+} RouteHandler;
 
 /*********************************************************************
  * @fn      mStopIfError
@@ -134,177 +125,291 @@ void sendResponse(u8 socketid, uint16_t status, char * type, uint8_t *content) {
     case 405:
       textSend(socketid, "405 Method Not Allowed");
       break;
+    case 413:
+      textSend(socketid, "413 Request Entity Too Large");
+      break;
   }
 
-  textSend(socketid, "\r\n");
-  textSend(socketid, "Connection: close\r\n");
+  textSend(socketid, "\r\nConnection: close\r\n");
 
-  if (status != 204) {
+  if (status == 204) {
+    textSend(socketid, "\r\n");
+  } else {
     if (type != NULL) {
-      textSend(socketid, "content-type: ");
+      textSend(socketid, "Content-Type: ");
       textSend(socketid, type);
       textSend(socketid, "\r\n");
     }
 
-    textSend(socketid, "content-encoding: gzip\r\n");
-
     if (content) {
-      // textSend(socketid, "Content-Length: ");
-      // char s[8];
-      // memset(s, 0, 8);
-      // sprintf(s, "%d", strlen(content));
-      // textSend(socketid, s);
-      // textSend(socketid, "\r\n");
-      //
-      // textSend(socketid, "\r\n");
-      // textSend(socketid, content);
-      // dataSend(id, content, ;
-      // textSend(socketid, "\r\n");
-
-      textSend(socketid, "content-length: ");
-      char s[8];
-      memset(s, 0, 8);
-      sprintf(s, "%d", assets_index_html_gz_len);
+      textSend(socketid, "Content-Length: ");
+      char s[6];
+      sprintf(s, "%d", strlen(content));
       textSend(socketid, s);
-      textSend(socketid, "\r\n");
-
-      textSend(socketid, "\r\n");
-      dataSend(socketid, content, assets_index_html_gz_len);
-      textSend(socketid, "\r\n");
+      textSend(socketid, "\r\n\r\n");
+      textSend(socketid, content);
     } else {
-      textSend(socketid, "Content-Length: 0\r\n");
+      textSend(socketid, "Content-Length: 0\r\n\r\n");
     }
   }
 
-    // textSend(socketid, "Content-Type: application/json\r\n");
 
+  WCHNET_SocketClose(socketid, TCP_CLOSE_NORMAL);
+}
 
-  // textSend(socketid, "200 OK\r\n");
-
-  // textSend(socketid, "Content-Length: 2\r\n");
-  // textSend(socketid, "\r\n");
-  // textSend(socketid, "{}");
-
-
+void getRoot(u8 socketid, const char * content) {
+  textSend(socketid, "HTTP/1.1 302 Found\r\n");
+  textSend(socketid, "Connection: close\r\n");
+  textSend(socketid, "Content-Length: 0\r\n");
+  textSend(socketid, "Location: /index.html\r\n");
   textSend(socketid, "\r\n");
 
   WCHNET_SocketClose(socketid, TCP_CLOSE_NORMAL);
 }
 
-void httpResponse(u8 socketid, const char *request) {
-    char method[16], url[256], version[16];
-    char *headers, *line;
+void getIndex(u8 socketid, const char * content) {
+  textSend(socketid, "HTTP/1.1 200 OK\r\n");
+  textSend(socketid, "Connection: close\r\n");
+  textSend(socketid, "Content-Encoding: gzip\r\n");
+  textSend(socketid, "Content-Type: text/html\r\n");
+  textSend(socketid, "Content-Length: ");
+  char s[6];
+  sprintf(s, "%d", assets_index_html_gz_len);
+  textSend(socketid, s);
+  textSend(socketid, "\r\n");
 
-    // Parse the request line (method, URL, version)
-    sscanf(request, "%15s %255s %15s", method, url, version);
-
-    printf("HTTP Method: %s\n", method);
-    printf("URL: %s\n", url);
-    printf("Version: %s\n", version);
-
-    // Find the headers section
-    headers = strstr(request, "\r\n");
-    if (headers) {
-      headers += 2; // Move past "\r\n"
-    } else {
-      return sendResponse(socketid, 400, NULL, NULL);
-    }
-
-    printf("Headers:\n");
-    // Parse each header line
-    line = strtok(headers, "\r\n");
-    while (line) {
-      printf("  %s\n", line);
-      line = strtok(NULL, "\r\n");
-    }
-
-    if (strcmp(method, "GET")) {
-      return sendResponse(socketid, 405, NULL, NULL);
-    }
-
-    // sendResponse(socketid, 204, NULL, NULL);
-    // sendResponse(socketid, 200, "application/json", "{\"hello\": \"world\"}");
-    sendResponse(socketid, 200, "text/html", assets_index_html_gz);
+  textSend(socketid, "\r\n");
+  dataSend(socketid, assets_index_html_gz, assets_index_html_gz_len);
+  WCHNET_SocketClose(socketid, TCP_CLOSE_NORMAL);
 }
 
-void WCHNET_HandleSockInt(u8 socketid, u8 intstat)
-{
+void getAbout(u8 socketid, const char * content) {
+  sendResponse(socketid, 200, "application/json", "{\"chip\":\"CH32V208WBU6\"}");
+}
+
+const static RouteHandler getHandlers[] = {
+  { "/", getRoot },
+  { "/index.html", getIndex },
+  { "/api/about", getAbout },
+  { NULL, NULL}  // End marker
+};
+
+void url_decode(char *str) {
+  char *src = str, *dst = str;
+  while (*src) {
+      if (*src == '%') {
+          if (isxdigit(src[1]) && isxdigit(src[2])) {
+              char hex[3] = { src[1], src[2], '\0' };
+              *dst++ = (char)strtol(hex, NULL, 16);
+              src += 3;
+          } else {
+              // Invalid percent encoding, copy as is
+              *dst++ = *src++;
+          }
+      } else if (*src == '+') {
+          *dst++ = ' '; // Replace '+' with a space
+          src++;
+      } else {
+          *dst++ = *src++; // Copy other characters
+      }
+  }
+  *dst = '\0'; // Null-terminate the decoded string
+}
+
+void postEcho(u8 socketid, const char * content) {
+  char *s2 = strdup(content);
+  char *pair = strtok(s2, "&");
+  char body[RECE_BUF_LEN] = "{";
+  uint16_t pairIndex = 0;
+  while (pair) {
+    char * key = pair;
+    char * value = strchr(pair, '=');
+
+    if (key) {
+      url_decode(key); // Decode the key
+    }
+
+    if (value) {
+      *value = '\0'; // Null-terminate the key
+      value++;       // Move to the value part
+      url_decode(value); // Decode the value
+    }
+
+    if (pairIndex) {
+      strcat(body, ",");
+    }
+
+    strcat(body, "\"");
+    strcat(body, key);
+    strcat(body, "\":\"");
+    strcat(body, value);
+    strcat(body, "\"");
+    pair = strtok(NULL, "&");
+    pairIndex++;
+  }
+
+  strcat(body, "}");
+
+  sendResponse(socketid, 200, "application/json", body);
+  free(s2);
+}
+
+const static RouteHandler postHandlers[] = {
+  { "/api/echo", postEcho },
+  { NULL, NULL }
+};
+
+void httpResponse(u8 socketid) {
+  char method[16], path[256], version[16];
+  char *headers, *line, *statusEnd, *headersEnd;
+  bool isHandled = false;
+
+  const char *request = requestBuffers[socketid];
+
+  statusEnd = strstr(request, "\r\n");
+
+  if (!statusEnd) {
+    return;
+  }
+
+  headersEnd = strstr(request, "\r\n\r\n");
+
+  if (!headersEnd) {  // headers not completed yet
+    return;
+  }
+
+  sscanf(request, "%15s %255s %15s", method, path, version);
+  // printf("HTTP Method: %s, PATH: %s, Version: %s\r\n", method, path, version);
+  
+  headers = strstr(request, "\r\n");
+  if (headers) {
+    headers += 2; // Move past "\r\n"
+  } else {
+    isHandled = true;
+    return sendResponse(socketid, 400, NULL, NULL);
+  }
+
+  u16 contentLength = 0;
+
+  // printf("Headers:\n");
+  line = strtok(headers, "\r\n"); // strtok would change the end of token to \0 and skip empty token
+  while (line && line < headersEnd) {
+    // printf("  %s\r\n", line);
+    if (!strncmp(line, "Content-Length:", 15)) {
+      contentLength = atoi(line + 15);
+    }
+    *(line + strlen(line)) = '\r';  // restore end of the token changed by strtok
+    line = strtok(NULL, "\r\n");
+  }
+
+  printf("request length received: %d, expected: %d\r\n", requestBufferLengths[socketid], headersEnd - request + 4 + contentLength);
+  if (requestBufferLengths[socketid] < headersEnd - request + 4 + contentLength) {  // content not completed yet
+    return;
+  }
+
+  if (strcmp(version, "HTTP/1.1")) {
+    isHandled = true;
+    return sendResponse(socketid, 400, NULL, NULL);
+  }
+
+  if (!strcmp(method, "GET")) {
+    for (uint8_t i = 0; getHandlers[i].path != NULL; i++) {
+      if (!strcmp(path, getHandlers[i].path)) {
+        getHandlers[i].handler(socketid, NULL);
+        isHandled = true;
+        break;
+      }
+    }
+  } else if (!strcmp(method, "POST")) {
+    for (uint8_t i = 0; postHandlers[i].path != NULL; i++) {
+      if (!strcmp(path, postHandlers[i].path)) {
+        postHandlers[i].handler(socketid, headersEnd + 4);
+        isHandled = true;
+        break;
+      }
+    }
+  } else {
+    isHandled = true;
+    return sendResponse(socketid, 405, NULL, NULL);
+  }
+
+  if (!isHandled) {
+    return sendResponse(socketid, 404, NULL, NULL);
+  }
+}
+
+void WCHNET_HandleSockInt(u8 socketid, u8 intstat) {
   u32 len;
-    if (intstat & SINT_STAT_RECV)                                 //receive data
-    {
-        // WCHNET_DataLoopback(socketid);                            //Data loopback
-        len = WCHNET_SocketRecvLen(socketid, NULL);
-        WCHNET_SocketRecv(socketid, requestBuffer, &len);
-        printf("socketid:%d Received data length: %d\r\n", socketid, len);
-        // printf("SourPort: %d, DesPort: %d\r\n", SocketInf[socketid].SourPort, SocketInf[socketid].DesPort);
-        // for (uint16_t i = 0; i < len; i++) {
-        //   printf("%02x ", requestBuffer[i]);
-        // }
-        requestBuffer[len] = '\0';
-        httpResponse(socketid, requestBuffer);
+  if (intstat & SINT_STAT_RECV) {                                 //receive data
+    len = WCHNET_SocketRecvLen(socketid, NULL);
+
+    // printf("SourPort: %d, DesPort: %d\r\n", SocketInf[socketid].SourPort, SocketInf[socketid].DesPort);
+    printf("socketid:%d Received %ld bytes\r\n", socketid, len);
+
+    if (requestBufferLengths[socketid] > RECE_BUF_LEN) {
+      WCHNET_SocketRecv(socketid, NULL, &len);
+      WCHNET_SocketClose(socketid, TCP_CLOSE_ABANDON);
+      requestBufferLengths[socketid] += len;
+      printf("dump request buffer left, %ld received\r\n", requestBufferLengths[socketid]);
+    } else if (requestBufferLengths[socketid] + len > RECE_BUF_LEN) {
+      requestBufferLengths[socketid] += len;
+      WCHNET_SocketRecv(socketid, NULL, &len);
+      sendResponse(socketid, 413, NULL, NULL);
+      printf("413 sent\r\n");
+    } else {
+      WCHNET_SocketRecv(socketid, requestBuffers[socketid] + requestBufferLengths[socketid], &len);
+      requestBufferLengths[socketid] += len;
+      printf("received: %d/%d\r\n", requestBufferLengths[socketid], RECE_BUF_LEN);
+      requestBuffers[socketid][requestBufferLengths[socketid]] = 0;
+      httpResponse(socketid);
     }
-    if (intstat & SINT_STAT_CONNECT)                              //connect successfully
-    {
-        WCHNET_ModifyRecvBuf(socketid, (u32) SocketRecvBuf[socketid], RECE_BUF_LEN);
-        printf("TCP Connect Success\r\n");
-        printf("socket id: %d\r\n", socketid);
-    }
-    if (intstat & SINT_STAT_DISCONNECT)                           //disconnect
-    {
-        printf("TCP Disconnect\r\n");
-    }
-    if (intstat & SINT_STAT_TIM_OUT)                              //timeout disconnect
-    {
-        printf("TCP Timeout\r\n");
-    }
+  }
+  if (intstat & SINT_STAT_CONNECT)                              //connect successfully
+  {
+    WCHNET_ModifyRecvBuf(socketid, (u32) SocketRecvBuf[socketid], RECE_BUF_LEN);
+    printf("TCP Connect Success: %d\r\n", socketid);
+    requestBufferLengths[socketid] = 0;
+  }
+  if (intstat & SINT_STAT_DISCONNECT)                           //disconnect
+  {
+    printf("TCP Disconnect: %d\r\n", socketid);
+  }
+  if (intstat & SINT_STAT_TIM_OUT)                              //timeout disconnect
+  {
+      printf("TCP Timeout: %d\r\n", socketid);
+  }
 }
 
-/*********************************************************************
- * @fn      WCHNET_HandleGlobalInt
- *
- * @brief   Global Interrupt Handle
- *
- * @return  none
- */
-void WCHNET_HandleGlobalInt(void)
-{
-    u8 intstat;
-    u16 i;
-    u8 socketint;
+void WCHNET_HandleGlobalInt(void) {
+  u8 intstat;
+  u16 i;
+  u8 socketint;
 
-    intstat = WCHNET_GetGlobalInt();                              //get global interrupt flag
-    if (intstat & GINT_STAT_UNREACH)                              //Unreachable interrupt
-    {
-        printf("GINT_STAT_UNREACH\r\n");
-    }
-    if (intstat & GINT_STAT_IP_CONFLI)                            //IP conflict
-    {
-        printf("GINT_STAT_IP_CONFLI\r\n");
-    }
-    if (intstat & GINT_STAT_PHY_CHANGE)                           //PHY status change
-    {
-        i = WCHNET_GetPHYStatus();
-        if (i & PHY_Linked_Status)
-            printf("PHY Link Success\r\n");
-    }
-    if (intstat & GINT_STAT_SOCKET) {                             //socket related interrupt
-        for (i = 0; i < WCHNET_MAX_SOCKET_NUM; i++) {
-            socketint = WCHNET_GetSocketInt(i);
-            if (socketint)
-                WCHNET_HandleSockInt(i, socketint);
-        }
-    }
+  intstat = WCHNET_GetGlobalInt();                              //get global interrupt flag
+  if (intstat & GINT_STAT_UNREACH)                              //Unreachable interrupt
+  {
+      printf("GINT_STAT_UNREACH\r\n");
+  }
+  if (intstat & GINT_STAT_IP_CONFLI)                            //IP conflict
+  {
+      printf("GINT_STAT_IP_CONFLI\r\n");
+  }
+  if (intstat & GINT_STAT_PHY_CHANGE)                           //PHY status change
+  {
+      i = WCHNET_GetPHYStatus();
+      if (i & PHY_Linked_Status)
+          printf("PHY Link Success\r\n");
+  }
+  if (intstat & GINT_STAT_SOCKET) {                             //socket related interrupt
+      for (i = 0; i < WCHNET_MAX_SOCKET_NUM; i++) {
+          socketint = WCHNET_GetSocketInt(i);
+          if (socketint)
+              WCHNET_HandleSockInt(i, socketint);
+      }
+  }
 }
 
-/*********************************************************************
- * @fn      main
- *
- * @brief   Main program
- *
- * @return  none
- */
-int main(void)
-{
+int main(void) {
     u8 i;
     Delay_Init();
     USART_Printf_Init(115200);                                    //USART initialize

@@ -25,7 +25,7 @@ u8 MACAddr[6];                                          //MAC address
 u8 IPAddr[4] = { 192, 168, 0, 32 };                     //IP address
 u8 GWIPAddr[4] = { 192, 168, 0, 1 };                    //Gateway IP address
 u8 IPMask[4] = { 255, 255, 255, 0 };                    //subnet mask
-u16 srcport = 1000;                                     //source port
+u16 srcport = 80;                                     //source port
 
 u8 SocketIdForListen;                                   //Socket for Listening
 u8 socket[WCHNET_MAX_SOCKET_NUM];                       //Save the currently connected socket
@@ -105,12 +105,12 @@ void WCHNET_CreateTcpSocketListen(void)
  */
 void WCHNET_DataLoopback(u8 id)
 {
-#if 0
+#if 1
     u8 i;
     u32 len;
     u32 endAddr = SocketInf[id].RecvStartPoint + SocketInf[id].RecvBufLen;       //Receive buffer end address
 
-    printf("%d: RecvStartPoint: %lx, RecvReadPoint: %lx, RecvBufLen: %lx, RecvRemLen: %lx \r\n", id, SocketInf[id].RecvStartPoint, SocketInf[id].RecvReadPoint, SocketInf[id].RecvBufLen, SocketInf[id].RecvRemLen);
+    // printf("%d: RecvStartPoint: %lx, RecvReadPoint: %lx, RecvBufLen: %lx, RecvRemLen: %lx \r\n", id, SocketInf[id].RecvStartPoint, SocketInf[id].RecvReadPoint, SocketInf[id].RecvBufLen, SocketInf[id].RecvRemLen);
 
     if ((SocketInf[id].RecvReadPoint + SocketInf[id].RecvRemLen) > endAddr) {    //Calculate the length of the received data
         len = endAddr - SocketInf[id].RecvReadPoint;
@@ -119,11 +119,11 @@ void WCHNET_DataLoopback(u8 id)
         len = SocketInf[id].RecvRemLen;
     }
     i = WCHNET_SocketSend(id, (u8 *) SocketInf[id].RecvReadPoint, &len);        //send data
-    printf("len: %d, recv: ", len);
-    for (uint8_t i = 0; i < len; i++) {
-      printf("%02x ", * ((u8 *)SocketInf[id].RecvReadPoint + i));
-    }
-    printf("\r\n");
+    // printf("len: %d, recv: ", len);
+    // for (uint8_t i = 0; i < len; i++) {
+    //   printf("%02x ", * ((u8 *)SocketInf[id].RecvReadPoint + i));
+    // }
+    // printf("\r\n");
     if (i == WCHNET_ERR_SUCCESS) {
       printf("%d: RecvReadPoint: %lx, RecvRemLen: %lx\r\n", id, SocketInf[id].RecvReadPoint, SocketInf[id].RecvRemLen);
       WCHNET_SocketRecv(id, NULL, &len);                                      //Clear SocketInf[id].RecvRemLen

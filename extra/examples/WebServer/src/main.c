@@ -304,12 +304,12 @@ int main(void)
     memcpy(GWIPAddr, Basic_CfgBuf.gateway, 4);
     printf("ip: ");
     for (i = 0; i < 4; i++)
-        printf("%d.", IPAddr[i]);
+      printf("%d.", IPAddr[i]);
     printf("\n");
 
     printf("mac addr: ");
-    for(i = 0; i < 6; i++)
-        printf("%x ", MACAddr[i]);
+    for (i = 0; i < 6; i++)
+      printf("%x ", MACAddr[i]);
     printf("\n");
     TIM2_Init();
     i = ETH_LibInit(IPAddr, GWIPAddr, IPMask, MACAddr);                         //Ethernet library initialize
