@@ -280,7 +280,7 @@ void httpResponse(u8 socketid) {
 
   sscanf(request, "%15s %255s %15s", method, path, version);
   // printf("HTTP Method: %s, PATH: %s, Version: %s\r\n", method, path, version);
-  
+
   headers = strstr(request, "\r\n");
   if (headers) {
     headers += 2; // Move past "\r\n"
@@ -342,9 +342,8 @@ void WCHNET_HandleSockInt(u8 socketid, u8 intstat) {
   u32 len;
   if (intstat & SINT_STAT_RECV) {                                 //receive data
     len = WCHNET_SocketRecvLen(socketid, NULL);
-
     // printf("SourPort: %d, DesPort: %d\r\n", SocketInf[socketid].SourPort, SocketInf[socketid].DesPort);
-    printf("socketid:%d Received %ld bytes\r\n", socketid, len);
+    printf("socketid: %d, %ld bytes\r\n", socketid, len);
 
     if (requestBufferLengths[socketid] > RECE_BUF_LEN) {
       WCHNET_SocketRecv(socketid, NULL, &len);
@@ -364,19 +363,16 @@ void WCHNET_HandleSockInt(u8 socketid, u8 intstat) {
       httpResponse(socketid);
     }
   }
-  if (intstat & SINT_STAT_CONNECT)                              //connect successfully
-  {
+  if (intstat & SINT_STAT_CONNECT) {                              //connect successfully
     WCHNET_ModifyRecvBuf(socketid, (u32) SocketRecvBuf[socketid], RECE_BUF_LEN);
-    printf("TCP Connect Success: %d\r\n", socketid);
+    printf("TCP Connected: %d\r\n", socketid);
     requestBufferLengths[socketid] = 0;
   }
-  if (intstat & SINT_STAT_DISCONNECT)                           //disconnect
-  {
-    printf("TCP Disconnect: %d\r\n", socketid);
+  if (intstat & SINT_STAT_DISCONNECT) {                           //disconnect
+    printf("TCP Disconnected: %d\r\n", socketid);
   }
-  if (intstat & SINT_STAT_TIM_OUT)                              //timeout disconnect
-  {
-      printf("TCP Timeout: %d\r\n", socketid);
+  if (intstat & SINT_STAT_TIM_OUT) {                              //timeout disconnect
+    printf("TCP Timeout: %d\r\n", socketid);
   }
 }
 
@@ -386,65 +382,61 @@ void WCHNET_HandleGlobalInt(void) {
   u8 socketint;
 
   intstat = WCHNET_GetGlobalInt();                              //get global interrupt flag
-  if (intstat & GINT_STAT_UNREACH)                              //Unreachable interrupt
-  {
-      printf("GINT_STAT_UNREACH\r\n");
+  if (intstat & GINT_STAT_UNREACH) {                             //Unreachable interrupt
+    printf("GINT_STAT_UNREACH\r\n");
   }
-  if (intstat & GINT_STAT_IP_CONFLI)                            //IP conflict
-  {
-      printf("GINT_STAT_IP_CONFLI\r\n");
+  if (intstat & GINT_STAT_IP_CONFLI) {                           //IP conflict
+    printf("GINT_STAT_IP_CONFLI\r\n");
   }
-  if (intstat & GINT_STAT_PHY_CHANGE)                           //PHY status change
-  {
-      i = WCHNET_GetPHYStatus();
-      if (i & PHY_Linked_Status)
-          printf("PHY Link Success\r\n");
+  if (intstat & GINT_STAT_PHY_CHANGE) {                           //PHY status change
+    i = WCHNET_GetPHYStatus();
+    if (i & PHY_Linked_Status)
+      printf("PHY Link Success\r\n");
   }
   if (intstat & GINT_STAT_SOCKET) {                             //socket related interrupt
-      for (i = 0; i < WCHNET_MAX_SOCKET_NUM; i++) {
-          socketint = WCHNET_GetSocketInt(i);
-          if (socketint)
-              WCHNET_HandleSockInt(i, socketint);
-      }
+    for (i = 0; i < WCHNET_MAX_SOCKET_NUM; i++) {
+      socketint = WCHNET_GetSocketInt(i);
+      if (socketint)
+        WCHNET_HandleSockInt(i, socketint);
+    }
   }
 }
 
 int main(void) {
-    u8 i;
-    Delay_Init();
-    USART_Printf_Init(115200);                                    //USART initialize
-    printf("TCPServer Test\r\n");
-    if((SystemCoreClock == 60000000) || (SystemCoreClock == 120000000))
-        printf("SystemClk:%d\r\n", SystemCoreClock);
-    else
-        printf("Error: Please choose 60MHz and 120MHz clock when using Ethernet!\r\n");
-    printf("net version:%x\n", WCHNET_GetVer());
-    if (WCHNET_LIB_VER != WCHNET_GetVer()) {
-        printf("version error.\n");
-    }
-    WCHNET_GetMacAddr(MACAddr);                                   //get the chip MAC address
-    printf("mac addr:");
-    for(i = 0; i < 6; i++)
-        printf("%x ",MACAddr[i]);
-    printf("\n");
-    TIM2_Init();
-    i = ETH_LibInit(IPAddr, GWIPAddr, IPMask, MACAddr);           //Ethernet library initialize
-    mStopIfError(i);
-    if (i == WCHNET_ERR_SUCCESS)
-        printf("WCHNET_LibInit Success\r\n");
+  u8 i;
+  Delay_Init();
+  USART_Printf_Init(115200);                                    //USART initialize
+  printf("TCPServer Test\r\n");
+  if ((SystemCoreClock == 60000000) || (SystemCoreClock == 120000000))
+    printf("SystemClk:%d\r\n", SystemCoreClock);
+  else
+    printf("Error: Please choose 60MHz and 120MHz clock when using Ethernet!\r\n");
 
-    WCHNET_CreateTcpSocketListen();                               //Create TCP Socket for Listening
+  printf("net version:%x\n", WCHNET_GetVer());
+  if (WCHNET_LIB_VER != WCHNET_GetVer()) {
+    printf("version error.\n");
+  }
 
-    while(1)
-    {
-        /*Ethernet library main task function,
-         * which needs to be called cyclically*/
-        WCHNET_MainTask();
-        /*Query the Ethernet global interrupt,
-         * if there is an interrupt, call the global interrupt handler*/
-        if(WCHNET_QueryGlobalInt())
-        {
-            WCHNET_HandleGlobalInt();
-        }
+  WCHNET_GetMacAddr(MACAddr);                                   //get the chip MAC address
+
+  printf("mac addr:");
+  for (i = 0; i < 6; i++)
+    printf("%x ",MACAddr[i]);
+  printf("\r\n");
+
+  TIM2_Init();
+  i = ETH_LibInit(IPAddr, GWIPAddr, IPMask, MACAddr);           //Ethernet library initialize
+  mStopIfError(i);
+
+  if (i == WCHNET_ERR_SUCCESS)
+    printf("WCHNET_LibInit Success\r\n");
+
+  WCHNET_CreateTcpSocketListen();                               //Create TCP Socket for Listening
+
+  while (1) {
+    WCHNET_MainTask();
+    if (WCHNET_QueryGlobalInt()) {
+      WCHNET_HandleGlobalInt();
     }
+  }
 }
