@@ -16,7 +16,7 @@ APP_INC_DIR = $(APP_ROOT)/include
 APP_SOURCES = $(notdir $(wildcard $(APP_ROOT)/*.c))
 APP_OBJECTS = $(addprefix $(OUTPUT_DIR)/APP/, $(APP_SOURCES:.c=.o))
 
-HAL_ROOT =	../../BLE/HAL
+HAL_ROOT =	./HAL
 HAL_INC_DIR = $(HAL_ROOT)/include
 HAL_SOURCES = MCU.c RTC.c
 HAL_OBJECTS = $(addprefix $(OUTPUT_DIR)/HAL/, $(HAL_SOURCES:.c=.o))
@@ -33,7 +33,7 @@ Peripheral_ROOT = ../../../EVT/EXAM/SRC/Peripheral
 Peripheral_INC_DIR = $(Peripheral_ROOT)/inc
 Peripheral_SRC_DIR = $(Peripheral_ROOT)/src
 Peripheral_SOURCES = $(notdir $(wildcard $(Peripheral_SRC_DIR)/*.c))
-# Peripheral_SOURCES = ch32v20x_gpio.c ch32v20x_usart.c ch32v20x_rcc.c ch32v20x_misc.c ch32v20x_rtc.c
+Peripheral_SOURCES = ch32v20x_gpio.c ch32v20x_usart.c ch32v20x_rcc.c ch32v20x_rtc.c ch32v20x_exti.c ch32v20x_pwr.c ch32v20x_flash.c ch32v20x_adc.c
 Peripheral_OBJECTS := $(addprefix $(OUTPUT_DIR)/Peripheral/, $(Peripheral_SOURCES:.c=.o))
 
 BleLib_ROOT = ../../BLE/LIB
